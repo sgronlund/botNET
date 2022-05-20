@@ -6,11 +6,11 @@ namespace slackBot
         private readonly ILogger<Worker> _logger;
         private readonly string _token;
         private readonly string _userName;
-        public Worker(ILogger<Worker> logger)
+        public Worker(ILogger<Worker> logger, IConfiguration config)
         {
             _logger = logger;
-            _token = "xoxb-3544251692277-3558111693236-DkAllRyw4LRaouExnRLFPP8Q";
-            _userName = "sebastiangronlundwork";
+            _token = config["slackToken"];
+            _userName = config["slackUser"];
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
