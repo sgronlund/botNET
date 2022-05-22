@@ -1,53 +1,59 @@
-using SlackAPI;
+using SlackBotMessages;
+using SlackBotMessages.Models;
+using System.Net.Http;
 namespace slackBot
 {
     public class Worker : BackgroundService
     {
         private readonly ILogger<Worker> _logger;
-        private readonly string _token;
-        private readonly string _userName;
+        private readonly string _hook;
+        private readonly HttpClient _httpClient;
+        private readonly Message startMsg;
         public Worker(ILogger<Worker> logger, IConfiguration config)
         {
             _logger = logger;
-            _token = config["slackToken"];
-            _userName = config["slackUser"];
+            _hook = config["slackHook"];
+            _httpClient = new HttpClient();
+            startMsg = new Message
+            {
+                Username = "Dagens Lunch",
+                Text = "Starting up ...",
+                IconEmoji = Emoji.Hamburger
+            };
+        }
+
+        private async Task ParseHTMLBody()
+        {
+            HttpResponseMessage responseMessage = await _httpClient.GetAsync("https://www.aland.com/lunch");
+            try
+            {
+                responseMessage.EnsureSuccessStatusCode();
+                var html = await responseMessage.Content.ReadAsByteArrayAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Response wasn't successful, exception message: {msg}", ex.Message);
+            }
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var slackClient = new SlackTaskClient(_token);
-            var resp = await slackClient.PostMessageAsync("#general", "Starting up....");
-            if (resp == null)
+            var client = new SbmClient(_hook);
+            var msg = await client.SendAsync(startMsg);
+            _logger.LogInformation("Sent startup message");
+            if(msg.Contains("Error when"))
             {
-                _logger.LogWarning("Startup message failed, failed to connect to workspace");
-            }
-            else
-            {
-                _logger.LogInformation("Bot succesfully started at {stamp}!", DateTimeOffset.Now);
-                var user = await slackClient.GetUserListAsync();
-                if (user != null)
+                var exceptionMsg = msg.Split(": ")[1];
+                _logger.LogError("Error during startup, exception occured with message: {exMsg}",exceptionMsg);
+            } else {
+                var successMsg = new Message
                 {
-                    var members = user.members;
-                    var me = members.FirstOrDefault(m => m.name == _userName);
-                    if(me == null)
-                    {
-                        _logger.LogError("Couldn't find user: {0}", _userName);
-                    } else
-                    {
-                        var userDM = await slackClient.JoinDirectMessageChannelAsync(me.real_name);
-                        if(userDM == null)
-                        {
-                            _logger.LogError("Couldn't join DM");
-                        } else
-                        {
-                            var userChannel = userDM.channel;
-                            await slackClient.PostMessageAsync(userChannel.id, "Hello from the DMs!");
-                        }
-
-                    }
-                }
+                    Text = "Succesfully started!"
+                };
+                await client.SendAsync(successMsg);
+                _logger.LogInformation("Client now running since {stamp}", DateTimeOffset.Now);
+                var body = ParseHTMLBody();
             }
-            
         }
     }
 }

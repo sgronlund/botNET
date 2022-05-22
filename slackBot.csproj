@@ -10,5 +10,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
     <PackageReference Include="SlackAPI" Version="1.1.13" />
+    <PackageReference Include="SlackBotMessages" Version="2.1.0" />
   </ItemGroup>
 </Project>
