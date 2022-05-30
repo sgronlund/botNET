@@ -4,3 +4,5 @@ This repository contains a simple slack bot meant to automate my daily life, all
 
 ## Future work
 - [ ] Replace current package for slack messages with own API calls.
+- [ ] Experiment with Docker
+- [ ] Implement the Repository Pattern (EF Core stoof)
