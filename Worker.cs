@@ -2,6 +2,8 @@ using SlackBotMessages;
 using SlackBotMessages.Models;
 using AngleSharp.Html.Parser;
 using System.Text.RegularExpressions;
+using AngleSharp.Dom;
+
 namespace slackBot
 {
     public class Worker : BackgroundService
@@ -36,27 +38,20 @@ namespace slackBot
                 var html = await responseMessage.Content.ReadAsStringAsync();
                 var parser = new HtmlParser();
                 var doc = await parser.ParseDocumentAsync(html);
-                var namesOfRestaurants = doc.QuerySelectorAll(".restaurant-name"); //This fetches the titles of all restaurants
-                var infoOfRestaurants = doc.QuerySelectorAll(".dishes-wrapper"); //This all of the dishes for the specific restaurant
-                if (namesOfRestaurants.Count() == 0 || infoOfRestaurants.Count() == 0)
+                var unmatchedNameDishPairs = doc.QuerySelectorAll(".dishes.daily, .restaurant-name");
+                if (unmatchedNameDishPairs.Count() == 0)
                 {
                     _logger.LogError("QuerySelector failed, site has probably been updated");
                     return "";
                 }
-                else if (namesOfRestaurants.Count() != infoOfRestaurants.Count())
-                {
-                    _logger.LogError("Number of restaurants not matching divs with dishes, querySelector might be incorrect");
-                    return "";
-                }
                 else
                 {
-                    for (int i = 0; i < namesOfRestaurants.Count(); ++i)
+                    List<IElement> matchedPairs = FilterUnmatchedPairs(unmatchedNameDishPairs);
+                    for (int i = 0; i < matchedPairs.Count(); i = i + 2)
                     {
-                        var name = namesOfRestaurants[i].TextContent; //This should be the title of the restuarant
-                        var test = infoOfRestaurants[i].TextContent.Trim();
-                        //price regex ([0-9.,€]+)
-                        //dish info regex ([a-öA-ö (),-]+)
-                        // could possibly be done more efficiently
+                        var name = matchedPairs[i].TextContent; //This should be the title of the restuarant
+                        var dishes = matchedPairs[i + 1].TextContent;
+                        //TODO: Parse dish info as well as trim the content of excessive \n and whitespace
                     }
                     return "success";
                 }
@@ -68,6 +63,20 @@ namespace slackBot
             }
         }
 
+        private List<IElement> FilterUnmatchedPairs(IHtmlCollection<IElement> unmatchedPairs)
+        {
+            List<IElement> list = unmatchedPairs.ToList();
+            for (int i = 0; i < unmatchedPairs.Count() - 1; ++i)
+            {
+                var current = unmatchedPairs[i];
+                var next = unmatchedPairs[i + 1];
+                if (current.NodeName == next.NodeName)
+                {
+                    list.Remove(current);
+                }
+            }
+            return list;
+        }
         private Message CreateInfoMessage(string parsedBody)
         {
             if (parsedBody.Length == 0)
