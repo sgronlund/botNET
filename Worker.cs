@@ -21,7 +21,7 @@ namespace slackBot
             url = config.GetValue<string>("URI:Aland");
             startMsg = new Message
             {
-                Username = "Dagens Lunch",
+                Username = "Lunch",
                 Text = "Starting up ...",
                 IconEmoji = Emoji.Hamburger
             };
